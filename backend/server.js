@@ -12,18 +12,9 @@ const db = new sqlite3.Database(':memory:');
 
 // Initialize the database with tables and sample data
 db.serialize(() => {
-  // Create articles table (5 columns with mixed data types)
-  db.run(`CREATE TABLE articles (
+  // Create products table (2 columns - limited visibility)
+  db.run(`CREATE TABLE products (
     id INTEGER PRIMARY KEY, 
-    title TEXT, 
-    content TEXT, 
-    view_count INTEGER,
-    published_date TEXT
-  )`);
-  
-  // Create categories table
-  db.run(`CREATE TABLE categories (
-    id INTEGER PRIMARY KEY,
     name TEXT
   )`);
   
@@ -43,74 +34,38 @@ db.serialize(() => {
     role TEXT
   )`);
   
-  // Insert articles
-  db.run("INSERT INTO articles VALUES (1, 'Tech News Today', 'Latest technology developments and innovations', 1250, '2024-05-20')");
-  db.run("INSERT INTO articles VALUES (2, 'Sports Update', 'Championship results and player statistics', 890, '2024-05-19')");
-  db.run("INSERT INTO articles VALUES (3, 'Entertainment Buzz', 'Movie reviews and celebrity news', 2100, '2024-05-18')");
-  
-  // Insert categories
-  db.run("INSERT INTO categories VALUES (1, 'tech')");
-  db.run("INSERT INTO categories VALUES (2, 'sports')");
-  db.run("INSERT INTO categories VALUES (3, 'entertainment')");
+  // Insert products
+  db.run("INSERT INTO products VALUES (1, 'Gaming Laptop')");
+  db.run("INSERT INTO products VALUES (2, 'Business Laptop')");
+  db.run("INSERT INTO products VALUES (3, 'Smartphone Pro')");
+  db.run("INSERT INTO products VALUES (4, 'Smartphone Basic')");
+  db.run("INSERT INTO products VALUES (5, 'Wireless Headphones')");
+  db.run("INSERT INTO products VALUES (6, 'Bluetooth Speaker')");
   
   // Insert users
   db.run("INSERT INTO users VALUES (1, 'john_doe', 'john@email.com', 'password123')");
   db.run("INSERT INTO users VALUES (2, 'jane_smith', 'jane@email.com', 'mypassword')");
   db.run("INSERT INTO users VALUES (3, 'mike_wilson', 'mike@email.com', 'secret123')");
+  db.run("INSERT INTO users VALUES (4, 'sarah_davis', 'sarah@email.com', 'pass456')");
   
   // Insert admin users
   db.run("INSERT INTO admin_users VALUES (1, 'admin', 'admin123', 'Super Admin')");
-  db.run("INSERT INTO admin_users VALUES (2, 'manager', 'manager456', 'Content Manager')");
+  db.run("INSERT INTO admin_users VALUES (2, 'manager', 'manager456', 'Store Manager')");
 });
 
-// Function to validate data types and simulate strict type checking
-function validateUnionQuery(query) {
-  const unionMatch = query.match(/UNION\s+SELECT\s+([^-]+)--/i);
-  if (unionMatch) {
-    const selectPart = unionMatch[1].trim();
-    const values = selectPart.split(',').map(v => v.trim());
-    
-    // Expected data types for articles table: INTEGER, TEXT, TEXT, INTEGER, TEXT
-    const expectedTypes = ['INTEGER', 'TEXT', 'TEXT', 'INTEGER', 'TEXT'];
-    
-    for (let i = 0; i < values.length; i++) {
-      const value = values[i];
-      const expectedType = expectedTypes[i];
-      
-      // Check if it's a string literal (quoted)
-      if (value.startsWith("'") && value.endsWith("'")) {
-        if (expectedType === 'INTEGER') {
-          throw new Error(`datatype mismatch: cannot insert TEXT value into INTEGER column ${i + 1} (${value})`);
-        }
-      }
-    }
-  }
-}
-
-// API endpoint for articles with SQL Injection vulnerability
-app.get('/api/articles', (req, res) => {
-  const category = req.query.category || 'all';
+// API endpoint for products with SQL Injection vulnerability (limited visibility)
+app.get('/api/products', (req, res) => {
+  const search = req.query.search || '';
   let query;
 
-  if (category === 'all') {
-    query = `SELECT * FROM articles`;
+  if (search === '') {
+    query = `SELECT id, name FROM products`;
   } else {
-    // This is vulnerable to SQL injection
-    query = `SELECT * FROM articles WHERE title LIKE '%${category}%'`;
+    // This is vulnerable to SQL injection - only 2 columns, limited visibility
+    query = `SELECT id, name FROM products WHERE name LIKE '%${search}%'`;
   }
 
   console.log("Executing SQL:", query);
-
-  // Validate for data type mismatches in UNION queries
-  try {
-    validateUnionQuery(query);
-  } catch (error) {
-    console.error("Data type validation error:", error.message);
-    return res.status(500).json({ 
-      error: 'Database error', 
-      details: error.message 
-    });
-  }
 
   db.all(query, (err, rows) => {
     if (err) {
@@ -121,32 +76,19 @@ app.get('/api/articles', (req, res) => {
   });
 });
 
-// API endpoint for categories
-app.get('/api/categories', (req, res) => {
-  const query = `SELECT * FROM categories`;
+// API endpoint for product details
+app.get('/api/products/:id', (req, res) => {
+  const productId = req.params.id;
+  const query = `SELECT * FROM products WHERE id = ?`;
   
-  db.all(query, (err, rows) => {
-    if (err) {
-      console.error(err);
-      return res.status(500).json({ error: 'Database error' });
-    }
-    res.json({ sql: query, data: rows });
-  });
-});
-
-// API endpoint for article details
-app.get('/api/articles/:id', (req, res) => {
-  const articleId = req.params.id;
-  const query = `SELECT * FROM articles WHERE id = ?`;
-  
-  db.get(query, [articleId], (err, row) => {
+  db.get(query, [productId], (err, row) => {
     if (err) {
       console.error(err);
       return res.status(500).json({ error: 'Database error' });
     }
     
     if (!row) {
-      return res.status(404).json({ error: 'Article not found' });
+      return res.status(404).json({ error: 'Product not found' });
     }
     
     res.json(row);
@@ -155,13 +97,12 @@ app.get('/api/articles/:id', (req, res) => {
 
 app.get('/api/', (req, res) => {
   console.log("Frontend HIT");
-  return res.status(200).json({ message: 'Text Column Lab API' });
+  return res.status(200).json({ message: 'Multiple Values Lab API' });
 });
 
 // Start server
 const PORT = 3000;
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
-  console.log('Try: http://localhost:3000/api/articles?category=tech\' UNION SELECT \'TEST\',NULL,NULL,NULL,NULL--');
-  console.log('Expected: datatype mismatch error for TEXT in INTEGER position');
+  console.log('Try: http://localhost:3000/api/products?search=laptop\' UNION SELECT NULL,username||\':\' ||password FROM users--');
 });
